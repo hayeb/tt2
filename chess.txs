@@ -1,0 +1,106 @@
+{-
+TorXakis - Model Based Testing
+Copyright (c) 2015-2016 TNO and Radboud University
+See license.txt
+-}
+
+
+-- ----------------------------------------------------------------------------------------- --
+-- Dispatch Process
+
+
+-- ----------------------------------------------------------------------------------------- --
+-- Data
+
+TYPEDEF ChessState ::= String
+
+TYPEDEF ChessStates ::= Nil | Cons  { hd ::  ChessState
+                              ; tl ::  ChessStates
+                              }
+							  
+FUNCDEF  add ( x :: ChessState; l :: ChessStates ) :: IntList
+         ::= IF    isNil(l)
+             THEN  Cons(x,Nil)
+             ELSE  Cons(hd(l),add(x,tl(l)))
+             FI
+ENDDEF
+
+-- ----------------------------------------------------------------------------------------- --
+{- Send the move command to the SUT -}
+PROCDEF move [Responses :: ChessStates, Commands :: String] (l :: ChessStates)
+	Commands !"move" >-> chessLoop [Responses, Commands] (l)
+ENDDEF
+
+{- }
+PROCDEF  back
+    {- Send the backs command -}
+
+    {- Receive response: BackId, which should be equal to the last element of the backlist -}
+
+    {- forward/forwards -}
+ENDDEF
+
+PROCDEF backs
+ENDDEF
+
+PROCDEF forward
+    {- Send the back command -}
+
+    {- Receive response: BackId, which should be equal to the first element of the backlist -}
+
+    {- Depending on size of backlist: back/backs/forward/forwards or forward/forwards -}
+ENDDEF
+
+PROCDEF forwards
+ENDDEF
+
+PROCDEF flip
+ENDDEF
+
+PROCDEF resign
+ENDDEF
+
+PROCDEF takeback
+ENDDEF
+
+PROCDEF resign
+ENDDEF
+
+PROCDEF chessLoop [Responses :: ChessStates, Commands :: String] (l :: ChessStates)
+	IF isNil(l)
+	THEN move [Responses, Commands] (l) >-> chessLoop [Responses, Commands] (l)
+	ELSE OtherAction [Responses, Commands] (l) >-> chessLoop [Responses, Commands] (l)
+
+ENDDEF
+
+-- ----------------------------------------------------------------------------------------- --
+
+
+CHANDEF Channels ::=
+    Commands :: String ; Responses :: ChessState
+ENDDEF
+
+
+MODELDEF LiChess ::=
+    CHAN IN    Responses 
+    CHAN OUT   Commands
+
+    BEHAVIOUR
+		chessLoop [Responses, Commands] (Nil)
+ENDDEF
+
+-- ----------------------------------------------------------------------------------------- --
+
+CNECTDEF  Sut ::=
+        CLIENTSOCK
+
+        CHAN  OUT   Job                           HOST "localhost"  PORT 7890
+        ENCODE      Job ? jd                  ->  ! toString(jd)
+        
+        CHAN  IN    Finish                        HOST "localhost"  PORT 7890
+        DECODE      Finish ! fromString(s)   <-   ? s
+ENDDEF
+
+-- ----------------------------------------------------------------------------------------- --
+--                                                                                           --
+-- ----------------------------------------------------------------------------------------- --
