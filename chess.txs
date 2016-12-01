@@ -1,92 +1,103 @@
-{-
-TorXakis - Model Based Testing
-Copyright (c) 2015-2016 TNO and Radboud University
-See license.txt
--}
-
-
--- ----------------------------------------------------------------------------------------- --
--- Dispatch Process
-
+-- TorXakis Model for the Lichess Chess application.
+-- Authors: Denisa _, Rick Erckens, Haye Bohm
 
 -- ----------------------------------------------------------------------------------------- --
 -- Data
 
-TYPEDEF ChessState ::= String
+TYPEDEF ChessState ::= Int
+ENDDEF
 
 TYPEDEF ChessStates ::= Nil | Cons  { hd ::  ChessState
                               ; tl ::  ChessStates
                               }
+ENDDEF
 							  
-FUNCDEF  add ( x :: ChessState; l :: ChessStates ) :: IntList
+FUNCDEF  add ( x :: ChessState; l :: ChessStates ) :: ChessStates
          ::= IF    isNil(l)
              THEN  Cons(x,Nil)
              ELSE  Cons(hd(l),add(x,tl(l)))
              FI
 ENDDEF
 
+TYPEDEF ChessCommand ::= Move | Back | BackStep | Forward | ForwardStep | Flip | Resign | TakeBack
+ENDDEF
+
 -- ----------------------------------------------------------------------------------------- --
 {- Send the move command to the SUT -}
-PROCDEF move [Responses :: ChessStates, Commands :: String] (l :: ChessStates)
-	Commands !"move" >-> chessLoop [Responses, Commands] (l)
+PROCDEF movePiece [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+::=
+	Command ! Move >-> Response ?resp >-> chessLoop [Response, Command] (Cons(resp, back), forward)
 ENDDEF
 
-{- }
-PROCDEF  back
-    {- Send the backs command -}
-
-    {- Receive response: BackId, which should be equal to the last element of the backlist -}
-
-    {- forward/forwards -}
+PROCDEF back [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+::=
 ENDDEF
 
-PROCDEF backs
+PROCDEF backStep [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+::=
 ENDDEF
 
-PROCDEF forward
-    {- Send the back command -}
-
-    {- Receive response: BackId, which should be equal to the first element of the backlist -}
-
-    {- Depending on size of backlist: back/backs/forward/forwards or forward/forwards -}
+PROCDEF forward [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+::=
 ENDDEF
 
-PROCDEF forwards
+PROCDEF forwardStep [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+::=
 ENDDEF
 
-PROCDEF flip
+PROCDEF chessLoop [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+::=
+    IF isNil(back) /\ isNil(forward) THEN
+        movePiece [Response, Command] (back, forward)
+    ELSE
+        IF isNil(back) THEN (
+                forward [Response, Command] (back, forward)
+            ##
+                forwardStep [Response, Command] (back, forward)
+            )
+        ELSE
+            IF isNil(forward) THEN (
+                    movePiece [Response, Command] (back, forward)
+                ##
+                    backward [Response, Command] (back, forward)
+                ##
+                    backwardStep [Response, Command] (back, forward)
+                    -- Maybe also add the other options: Resign, takeback? --
+               )
+            ELSE (
+                    movePiece [Response, Command] (back, forward)
+                ##
+                    backward [Response, Command] (back, forward)
+                ##
+                    backwardStep [Response, Command] (back, forward)
+                ##
+                    forward [Response, Command] (back, forward)
+                ##
+                    forwardStep [Response, Command] (back, forward)
+            )
+            FI
+        FI
+    FI
 ENDDEF
 
-PROCDEF resign
-ENDDEF
 
-PROCDEF takeback
-ENDDEF
 
-PROCDEF resign
-ENDDEF
 
-PROCDEF chessLoop [Responses :: ChessStates, Commands :: String] (l :: ChessStates)
-	IF isNil(l)
-	THEN move [Responses, Commands] (l) >-> chessLoop [Responses, Commands] (l)
-	ELSE OtherAction [Responses, Commands] (l) >-> chessLoop [Responses, Commands] (l)
-
-ENDDEF
 
 -- ----------------------------------------------------------------------------------------- --
 
 
 CHANDEF Channels ::=
-    Commands :: String ; Responses :: ChessState
+    Command :: ChessCommand ; Response :: ChessState
 ENDDEF
 
 
 MODELDEF LiChess ::=
-    CHAN IN    Responses 
-    CHAN OUT   Commands
+    CHAN IN    Command
+    CHAN OUT   Response
 
     BEHAVIOUR
-		chessLoop [Responses, Commands] (Nil)
+		movePiece [Response, Command] (Nil, Nil)
 ENDDEF
 
 -- ----------------------------------------------------------------------------------------- --
@@ -94,11 +105,11 @@ ENDDEF
 CNECTDEF  Sut ::=
         CLIENTSOCK
 
-        CHAN  OUT   Job                           HOST "localhost"  PORT 7890
-        ENCODE      Job ? jd                  ->  ! toString(jd)
-        
-        CHAN  IN    Finish                        HOST "localhost"  PORT 7890
-        DECODE      Finish ! fromString(s)   <-   ? s
+        CHAN OUT Command 					HOST "localhost" PORT 7890
+		ENCODE Command ? cmd				-> ! toString (cmd)
+		
+		CHAN IN Response					HOST "localhost" PORT 7890
+		DECODE 	Response ! fromString(s)	<- ? s
 ENDDEF
 
 -- ----------------------------------------------------------------------------------------- --
