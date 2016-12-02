@@ -70,22 +70,11 @@ public class ChessTest
 	{
 		try
 		{
-
-			// instantiate a socket for accepting a connection
 			ServerSocket servsock = new ServerSocket(port);
-
-			// wait to accept a connecion request
-			// then a data socket is created
 			Socket sock = servsock.accept();
-
-			// get an input stream for reading from the data socket
 			InputStream inStream = sock.getInputStream();
-			// create a BufferedReader object for text line input
 			BufferedReader sockin = new BufferedReader(new InputStreamReader(inStream));
-
-			// get an output stream for writing to the data socket
 			OutputStream outStream = sock.getOutputStream();
-			// create a PrinterWriter object for character-mode output
 			PrintWriter sockout = new PrintWriter(new OutputStreamWriter(outStream));
 
 			String received;

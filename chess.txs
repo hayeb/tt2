@@ -19,6 +19,12 @@ FUNCDEF  add ( x :: ChessState; l :: ChessStates ) :: ChessStates
              FI
 ENDDEF
 
+FUNCDEF getLast(l :: ChessStates) :: ChessState
+        ::= IF isNil(l)
+            THEN 0
+            ELSE
+ENDDEF
+
 TYPEDEF ChessCommand ::= Move | Back | BackStep | Forward | ForwardStep | Flip | Resign | TakeBack
 ENDDEF
 
@@ -26,24 +32,45 @@ ENDDEF
 {- Send the move command to the SUT -}
 PROCDEF movePiece [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
 ::=
-	Command ! Move >-> Response ?resp >-> chessLoop [Response, Command] (Cons(resp, back), forward)
+	Command ! Move >-> Response ? resp >-> chessLoop [Response, Command] (Cons(resp, back), forward)
 ENDDEF
 
 PROCDEF back [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
 ::=
+    Command ! Back >-> Response ? resp [[ resp == hd(back) ]] >-> chessLoop [Response :: ChessState, Command
 ENDDEF
 
 PROCDEF backStep [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
 ::=
+     Command ! BackStep
 ENDDEF
 
 PROCDEF forward [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
 ::=
+     Command ! Forward
 ENDDEF
 
 PROCDEF forwardStep [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
 ::=
+    Command ! ForwardStep
 ENDDEF
+
+PROCDEF flipBoard [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+::=
+    Command ! Flip
+ENDDEF
+
+PROCDEF resign [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+::=
+    Command ! Resign
+ENDDEF
+
+PROCDEF forwardStep [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+::=
+    Command ! TakeBack >->
+ENDDEF
+
+
 
 PROCDEF chessLoop [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
 ::=
