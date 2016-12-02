@@ -40,8 +40,6 @@ public class ChessTest
 
 	/**
 	 * Move a random piece to one of its random possible destinations TODO: Fix taken a different piece
-	 * 
-	 * @throws InterruptedException
 	 */
 	private void move() throws InterruptedException
 	{
@@ -61,9 +59,17 @@ public class ChessTest
 		while (targets.isEmpty());
 		Thread.sleep(500);
 
-		WebElement destination = targets.get(Math.abs(random.nextInt()) % targets.size());
-		System.out.println("Move to " + destination.getAttribute("style"));
-		destination.click();
+		WebElement toClick = toDestination(targets.get(Math.abs(random.nextInt()) % targets.size()), elements);
+
+		System.out.println("Move to " + toClick.getAttribute("style"));
+		toClick.click();
+	}
+
+	/**
+	 * Returns the element to be clicked on: Another piece if it is has the same location as the target, else the target.
+	 */
+	private WebElement toDestination(WebElement target, List<WebElement> elements) {
+		return elements.stream().filter(webElement -> webElement.getAttribute("style").equals(target.getAttribute("style"))).findFirst().orElse(target);
 	}
 
 	private void start(int port)
@@ -80,6 +86,7 @@ public class ChessTest
 			String received;
 			boolean end = false;
 			System.out.println("Started listening for command..");
+			sendBoardCode(sockout);
 			while (!end)
 			{
 				received = sockin.readLine().trim();
@@ -108,6 +115,15 @@ public class ChessTest
 				case "ForwardStep":
 					forwardStep();
 					sendBoardCode(sockout);
+					break;
+				case "Flip":
+
+					break;
+				case "Resign":
+
+					break;
+				case "takeBack":
+
 					break;
 				default:
 					System.err.println("Received unknown command \"" + received + "\"");

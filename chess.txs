@@ -11,105 +11,88 @@ TYPEDEF ChessStates ::= Nil | Cons  { hd ::  ChessState
                               ; tl ::  ChessStates
                               }
 ENDDEF
-							  
-FUNCDEF  add ( x :: ChessState; l :: ChessStates ) :: ChessStates
-         ::= IF    isNil(l)
-             THEN  Cons(x,Nil)
-             ELSE  Cons(hd(l),add(x,tl(l)))
-             FI
+
+-- add f to end of b
+FUNCDEF addToEnd (b :: ChessStates; f :: ChessStates) :: ChessStates
+    ::= IF isNil(f)
+        THEN b
+        ELSE
+            IF isNil(b)
+            THEN f
+            ELSE Cons(hd(b), addToEnd(tl(b), f))
+            FI
+        FI
 ENDDEF
 
 FUNCDEF getLast(l :: ChessStates) :: ChessState
-        ::= IF isNil(l)
-            THEN 0
-            ELSE
+	::= IF isNil(tl(l))
+		THEN hd(l)
+		ELSE getLast(tl(l))
+		FI
+ENDDEF
+
+-- add f to begin of b --
+FUNCDEF addToBegin (b :: ChessStates; f:: ChessStates) :: ChessStates
+    ::= addToEnd(f, b)
 ENDDEF
 
 TYPEDEF ChessCommand ::= Move | Back | BackStep | Forward | ForwardStep | Flip | Resign | TakeBack
 ENDDEF
 
 -- ----------------------------------------------------------------------------------------- --
-{- Send the move command to the SUT -}
-PROCDEF movePiece [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+PROCDEF movePiece [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates; current :: ChessState)
 ::=
-	Command ! Move >-> Response ? resp >-> chessLoop [Response, Command] (Cons(resp, back), forward)
+	Command ! Move >-> Response ? resp >-> chessLoop [Response, Command] (addToEnd(back, Cons(resp, Nil)), Nil, resp)
 ENDDEF
 
-PROCDEF back [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+PROCDEF backward [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates; current :: ChessState)
 ::=
-    Command ! Back >-> Response ? resp [[ resp == hd(back) ]] >-> chessLoop [Response :: ChessState, Command
+    Command ! Back >-> Response ? resp [[ resp == hd(back) ]] >-> chessLoop [Response, Command] ( Nil, addToBegin(Cons(current, forward), back), resp)
 ENDDEF
 
-PROCDEF backStep [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+PROCDEF backwardStep [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates; current :: ChessState)
 ::=
-     Command ! BackStep
+     Command ! BackStep >-> Response ? resp [[ resp == getLast(back) ]] >-> chessLoop [Response, Command] (addToEnd(back, Cons(current, Nil)), Cons(current, forward), resp)
 ENDDEF
 
-PROCDEF forward [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+PROCDEF forward [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates; current :: ChessState)
 ::=
-     Command ! Forward
+     Command ! Forward >-> Response ? resp [[resp == getLast(forward)]] >-> chessLoop [Response, Command] (addToEnd(addToEnd(back, Cons(current, Nil)), forward), Nil, resp)
 ENDDEF
 
-PROCDEF forwardStep [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+PROCDEF forwardStep [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates; current :: ChessState)
 ::=
-    Command ! ForwardStep
+    Command ! ForwardStep >-> Response ? resp [[resp == hd(forward)]] >-> chessLoop [Response, Command] (addToEnd(back, Cons(current, Nil)), tl(forward), resp)
 ENDDEF
 
-PROCDEF flipBoard [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
+PROCDEF chessLoop [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates; current :: ChessState)
 ::=
-    Command ! Flip
-ENDDEF
-
-PROCDEF resign [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
-::=
-    Command ! Resign
-ENDDEF
-
-PROCDEF forwardStep [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
-::=
-    Command ! TakeBack >->
-ENDDEF
-
-
-
-PROCDEF chessLoop [Response :: ChessState; Command :: ChessCommand] (back :: ChessStates; forward :: ChessStates)
-::=
-    IF isNil(back) /\ isNil(forward) THEN
-        movePiece [Response, Command] (back, forward)
-    ELSE
-        IF isNil(back) THEN (
-                forward [Response, Command] (back, forward)
+        [[isNil(back) /\ isNil(forward)]] =>> movePiece [Response, Command] (back, forward, current)
+     ##
+        [[isNil(back) /\ not(isNil(forward))]] =>> (
+                forward [Response, Command] (back, forward, current)
             ##
-                forwardStep [Response, Command] (back, forward)
-            )
-        ELSE
-            IF isNil(forward) THEN (
-                    movePiece [Response, Command] (back, forward)
-                ##
-                    backward [Response, Command] (back, forward)
-                ##
-                    backwardStep [Response, Command] (back, forward)
-                    -- Maybe also add the other options: Resign, takeback? --
-               )
-            ELSE (
-                    movePiece [Response, Command] (back, forward)
-                ##
-                    backward [Response, Command] (back, forward)
-                ##
-                    backwardStep [Response, Command] (back, forward)
-                ##
-                    forward [Response, Command] (back, forward)
-                ##
-                    forwardStep [Response, Command] (back, forward)
-            )
-            FI
-        FI
-    FI
+                forwardStep [Response, Command] (back, forward, current)
+        )
+	 ##
+		[[isNil(forward) /\ not(isNil(back))]] =>> (
+				movePiece [Response, Command] (back, forward, current)
+	        ##
+	            backward [Response, Command] (back, forward, current)
+	        ##
+	            backwardStep [Response, Command] (back, forward, current)
+	    )
+     ##
+        [[not(isNil(back)) /\ not(isNil(forward))]] =>> (
+                backward [Response, Command] (back, forward, current)
+            ##
+                backwardStep [Response, Command] (back, forward, current)
+            ##
+                forward [Response, Command] (back, forward, current)
+            ##
+                forwardStep [Response, Command] (back, forward, current)
+        )
 ENDDEF
-
-
-
-
 
 -- ----------------------------------------------------------------------------------------- --
 
@@ -124,7 +107,7 @@ MODELDEF LiChess ::=
     CHAN OUT   Response
 
     BEHAVIOUR
-		movePiece [Response, Command] (Nil, Nil)
+		Response ? resp >-> chessLoop [Response, Command] (Nil, Nil, response)
 ENDDEF
 
 -- ----------------------------------------------------------------------------------------- --
