@@ -107,7 +107,7 @@ MODELDEF LiChess ::=
     CHAN OUT   Response
 
     BEHAVIOUR
-		Response ? resp >-> chessLoop [Response, Command] (Nil, Nil, response)
+		Response ? resp >-> chessLoop [Response, Command] (Nil, Nil, resp)
 ENDDEF
 
 -- ----------------------------------------------------------------------------------------- --
