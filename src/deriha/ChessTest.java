@@ -119,24 +119,24 @@ public class ChessTest
 
 				switch (received)
 				{
-				case "Move":
+				case "ChessMove":
 					move();
 					Thread.sleep(500);
 					break;
-				case "Back":
+				case "ChessBack":
 					back();
 					Thread.sleep(500);
 					break;
-				case "BackStep":
+				case "ChessBackStep":
 					backStep();
 					backStep();
 					Thread.sleep(500);
 					break;
-				case "Forward":
+				case "ChessForward":
 					forward();
 					Thread.sleep(500);
 					break;
-				case "ForwardStep":
+				case "ChessForwardStep":
 					forwardStep();
 					forwardStep();
 					Thread.sleep(500);
@@ -189,7 +189,7 @@ public class ChessTest
 
 	public static void main(String[] args) throws InterruptedException
 	{
-		System.setProperty("webdriver.chrome.driver", "chromedriver.mac");
+		System.setProperty("webdriver.chrome.driver", "chromedriver.exe");
 
 		if (args.length != 1)
 		{
